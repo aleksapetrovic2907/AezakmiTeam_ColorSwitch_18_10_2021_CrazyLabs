@@ -7,9 +7,10 @@ namespace Aezakmi.Player
     public class Movement : MonoBehaviour
     {
         public float ForwardSpeed;
-        public float SideAcceleration;
-        public float MaxSideSpeed;
-        public float JumpStrength;
+        public float SideLerpSpeed;
+
+        private Vector3 _targetPosition;
+        private bool canMove = true;
 
         private Rigidbody _rigidBody;
         private TouchInput _touchInput;
@@ -20,20 +21,39 @@ namespace Aezakmi.Player
             _touchInput = GetComponent<TouchInput>();
         }
 
-        private void Update()
+        private void Start()
         {
-            if (_touchInput.IsTouching) SetSideAcceleration();
-            if(Input.GetKeyDown(KeyCode.Space)) Jump();
+            EventManager.current.onGameFinished += delegate { canMove = false; };
         }
 
-        private void FixedUpdate() => SetSpeedForward();
+        private void FixedUpdate()
+        {
+            SetSpeedForward();
+            SetSideAcceleration();
+            SlowDown();
+        }
 
-        public void Jump() => _rigidBody.velocity = new Vector3(_rigidBody.velocity.x, JumpStrength, _rigidBody.velocity.z);
-        private void SetSpeedForward() => _rigidBody.velocity = new Vector3(_rigidBody.velocity.x, _rigidBody.velocity.y, ForwardSpeed);
+        public void Jump(float JumpStrength) => _rigidBody.velocity = new Vector3(_rigidBody.velocity.x, JumpStrength, _rigidBody.velocity.z);
+
+        private void SetSpeedForward()
+        {
+            if (canMove)
+                _rigidBody.velocity = new Vector3(_rigidBody.velocity.x, _rigidBody.velocity.y, ForwardSpeed);
+        }
+
         private void SetSideAcceleration()
         {
-            if(_rigidBody.velocity.x <= MaxSideSpeed)
-                _rigidBody.AddForce(Vector3.right * _touchInput.TouchPosition.x * SideAcceleration * Time.deltaTime, ForceMode.VelocityChange);
+            if (_touchInput.IsTouching && canMove)
+            {
+                _targetPosition = Vector3.Lerp(transform.position, Vector3.right * (_touchInput.TouchPosition.x * 5), SideLerpSpeed * Time.fixedDeltaTime);
+                transform.position = new Vector3(_targetPosition.x, transform.position.y, transform.position.z);
+            }
+        }
+
+        private void SlowDown()
+        {
+            if (!canMove)
+                _rigidBody.velocity = Vector3.Lerp(_rigidBody.velocity, Vector3.zero, Time.fixedDeltaTime);
         }
     }
 }
